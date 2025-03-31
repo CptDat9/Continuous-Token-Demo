@@ -18,13 +18,22 @@ contract ERC20ContinuousToken is ContinuousToken {
         reserveToken = _reserveToken;
     }
 
-    function mint(uint256 ethAmount) public {
-        uint256 tokensToMint = calculateBuy(ethAmount);
-        // require(tokensToMint > 0, "Mint amount too low");
+  function mint(uint256 ethAmount) public {
+    require(ethAmount > 0, "Must send ETH");
+    require(reserveToken.transferFrom(msg.sender, address(this), ethAmount), "Transfer failed");
 
-        require(reserveToken.transferFrom(msg.sender, address(this), ethAmount), "Transfer failed");
-        _mint(msg.sender, tokensToMint);
+    uint256 tokensToMint;
+    if (totalSupply() == 0) {
+        // tùy chỉnh khi totalSupply = 0 ví dụ: 1 ETH = 1000 THRN
+        tokensToMint = ethAmount * 1000; 
+    } else {
+        tokensToMint = calculateBuy(ethAmount);
     }
+    require(tokensToMint > 0, "Mint amount too low");
+
+    reserveBalance += ethAmount; 
+    _mint(msg.sender, tokensToMint);
+}   
 
     function burn(uint256 tokenAmount) public {
         uint256 refundAmount = calculateSell(tokenAmount);

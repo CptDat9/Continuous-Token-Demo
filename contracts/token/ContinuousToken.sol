@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ContinuousToken is ERC20, Ownable {
     BancorBondingCurve public bondingCurve;
-    uint256 public reserveBalance;
-    uint32 public reserveRatio;
+    uint256 public reserveBalance; // Lượng dự trữ 
+    uint32 public reserveRatio;    // Tỷ lệ dự trữ 
     address public treasury;
 
     constructor(
@@ -16,61 +16,44 @@ contract ContinuousToken is ERC20, Ownable {
         string memory _symbol,
         address _bondingCurve,
         uint32 _reserveRatio
-        ) ERC20(_name, _symbol)  Ownable(msg.sender)  {
+    ) ERC20(_name, _symbol) Ownable(msg.sender) {
         bondingCurve = BancorBondingCurve(_bondingCurve);
         reserveRatio = _reserveRatio;
         treasury = msg.sender;
-        reserveBalance = 100 ether;
-
+        reserveBalance = 0; 
     }
 
-    // function buyTokens() external view returns(uint256) {
-    //     require(msg.value > 0, "Must send ETH");
-
-    //     uint256 supply = totalSupply();
-    //     uint256 tokensToMint = bondingCurve.calculatePurchaseReturn(supply, reserveBalance, reserveRatio, msg.value);
-    //     // if (tokensToMint == 0) {
-    //     // tokensToMint = 1;
-    //     // }
-    //     // reserveBalance += msg.value;
-    //     // _mint(msg.sender, tokensToMint);
-    //     return tokensToMint;
-
-    // }
-      function calculateBuy(uint256 ethAmount) public view returns (uint256) {
+    function calculateBuy(uint256 ethAmount) public view virtual returns (uint256) {
         require(ethAmount > 0, "Must send ETH");
         uint256 supply = totalSupply();
-        return bondingCurve.calculatePurchaseReturn(supply, reserveBalance, reserveRatio, ethAmount);
-    }
-    // function sellTokens(uint256 tokenAmount) external view returns(uint256) {
-    //     require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens");
-    //     require(totalSupply() > 0, "No tokens in supply");
-    //     require(reserveBalance > 0, "No ETH in reserve");
         
-    //     uint256 supply = totalSupply();
-    //     uint256 ethToReturn = bondingCurve.calculateSaleReturn(supply, reserveBalance, reserveRatio, tokenAmount);
-    //     require(ethToReturn > 0, "ETH return too small"); 
-    //     require(ethToReturn <= reserveBalance, "Not enough ETH in reserve");  
-    //     return ethToReturn;
-    //     // reserveBalance -= ethToReturn;
-    //     // _burn(msg.sender, tokenAmount);
-    //     // // // require(ERC20.allowance(msg.sender, address(this)) >= tokenAmount, "Allowance too low");
-    //     // // require(ERC20.transferFrom(msg.sender, treasury, tokenAmount),"Transfer failed"); 
-    //     // payable(msg.sender).transfer(ethToReturn);
-    //     //  (bool success, ) = payable(msg.sender).call{value: ethToReturn}("");
-    //     //  require(success,"ETH transfer failed.");
-    // }
-     function calculateSell(uint256 tokenAmount) public view returns (uint256) {
+        if (supply == 0) {
+            return ethAmount * 1000; // I use 1 ETH = 1000 token
+        }
+        return bondingCurve.calculatePurchaseReturn(
+            supply,
+            reserveBalance, 
+            reserveRatio,
+            ethAmount
+        );
+    }
+
+    function calculateSell(uint256 tokenAmount) public view virtual returns (uint256) {
         require(tokenAmount > 0, "Token amount must be greater than 0");
-        // require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens");
         require(totalSupply() > 0, "No tokens in supply");
-        require(reserveBalance > 0, "No ETH in reserve");
+        require(reserveBalance > 0, "No reserve available");
 
         uint256 supply = totalSupply();
-        return bondingCurve.calculateSaleReturn(supply, reserveBalance, reserveRatio, tokenAmount);
+        return bondingCurve.calculateSaleReturn(
+            supply,
+            reserveBalance,
+            reserveRatio,
+            tokenAmount
+        );
     }
+
     function mint(address to, uint256 amount) external onlyOwner {
-    _mint(to, amount);
+        _mint(to, amount);
     }
 
     function withdraw(uint256 amount) external onlyOwner {
